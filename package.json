@@ -2,6 +2,13 @@
   "name": "bettertunnels",
   "version": "0.1.0",
   "private": true,
+  "description": "Self-hosted Cloudflare Tunnel manager — create, start, stop, and monitor tunnels from a web dashboard.",
+  "author": "shahriyar",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shahriyar/cloudtunnel.git"
+  },
   "scripts": {
     "dev": "next dev -p 5730",
     "build": "next build",
