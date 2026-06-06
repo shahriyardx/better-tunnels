@@ -3,7 +3,7 @@ import { writeFileSync, existsSync, mkdirSync, readFileSync, createWriteStream }
 import { homedir } from "node:os";
 import path from "node:path";
 
-const CLOUDTUNNEL_DIR = path.join(homedir(), ".cloudtunnel");
+const CLOUDTUNNEL_DIR = path.join(homedir(), ".bettertunnels");
 const CONFIGS_DIR = path.join(CLOUDTUNNEL_DIR, "configs");
 const LOGS_DIR = path.join(CLOUDTUNNEL_DIR, "logs");
 
