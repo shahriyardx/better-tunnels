@@ -64,18 +64,15 @@ export default function HomePage() {
                 <div className="space-y-1">
                   <p className="text-sm font-medium">Install cloudflared</p>
                   <p className="text-xs text-muted-foreground">
-                    Download and install the Cloudflare Tunnel client.
+                    Download and install the Cloudflare Tunnel client for your OS.
                   </p>
-                  <pre className="mt-2 rounded-lg bg-muted p-3 text-xs font-mono overflow-x-auto">
-                    curl -sL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared {'&&'} chmod +x cloudflared {'&&'} sudo mv cloudflared /usr/local/bin/cloudflared
-                  </pre>
                   <a
                     href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block mt-1 text-xs text-primary underline underline-offset-4"
+                    className="inline-flex items-center gap-1.5 text-xs font-mono text-primary underline underline-offset-4"
                   >
-                    Other installation methods →
+                    developers.cloudflare.com
                   </a>
                 </div>
               </div>

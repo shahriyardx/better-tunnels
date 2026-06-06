@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,12 +15,19 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Field,
   FieldLabel,
   FieldError,
   FieldDescription,
 } from "@/components/ui/field";
-import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, CircleNotchIcon } from "@phosphor-icons/react";
 
 const formSchema = z.object({
   name: z.string().min(1, "Tunnel name is required"),
@@ -38,10 +46,14 @@ type FormData = z.output<typeof formSchema>;
 
 export default function NewTunnelPage() {
   const router = useRouter();
+  const [zones, setZones] = useState<string[]>([]);
+  const [zonesLoading, setZonesLoading] = useState(true);
+  const [selectedZone, setSelectedZone] = useState<string>("__custom__");
 
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
     setError,
   } = useForm({
@@ -53,6 +65,32 @@ export default function NewTunnelPage() {
       port: "",
     },
   });
+
+  useEffect(() => {
+    fetch("/api/domains")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.domains?.length) {
+          setZones(data.domains);
+          const first = data.domains[0];
+          setSelectedZone(first);
+          setValue("domain", first, { shouldValidate: true });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setZonesLoading(false));
+  }, [setValue]);
+
+  const handleZoneChange = (zone: string) => {
+    setSelectedZone(zone);
+    if (zone !== "__custom__") {
+      setValue("domain", zone, { shouldValidate: true });
+    }
+  };
+
+  const handleCustomDomain = (value: string) => {
+    setValue("domain", value, { shouldValidate: true });
+  };
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -99,6 +137,11 @@ export default function NewTunnelPage() {
         </header>
 
         <div className="flex flex-1 flex-col gap-4 p-4 max-w-lg mx-auto w-full pt-12">
+          {zonesLoading ? (
+            <div className="flex flex-1 items-center justify-center min-h-[300px]">
+              <CircleNotchIcon className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <Controller
               name="name"
@@ -129,15 +172,43 @@ export default function NewTunnelPage() {
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor={field.name}>Domain</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    placeholder="app.example.com"
-                    aria-invalid={fieldState.invalid}
-                    autoComplete="off"
-                  />
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1">
+                      <Input
+                        {...field}
+                        id={field.name}
+                        placeholder={
+                          selectedZone && selectedZone !== "__custom__"
+                            ? `subdomain.${selectedZone}`
+                            : "app.example.com"
+                        }
+                        aria-invalid={fieldState.invalid}
+                        autoComplete="off"
+                        onChange={(e) => {
+                          field.onChange(e);
+                          handleCustomDomain(e.target.value);
+                        }}
+                      />
+                      <Select
+                        value={selectedZone}
+                        onValueChange={handleZoneChange}
+                      >
+                        <SelectTrigger className="w-fit min-w-32">
+                          <SelectValue placeholder="Zone" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {zones.map((zone) => (
+                            <SelectItem key={zone} value={zone}>
+                              .{zone}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="__custom__">Other...</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                   <FieldDescription>
-                    Domain name routed through Cloudflare.
+                    Select a zone from your Cloudflare account or type a custom domain.
                   </FieldDescription>
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
@@ -214,6 +285,7 @@ export default function NewTunnelPage() {
               </Button>
             </div>
           </form>
+          )}
         </div>
       </SidebarInset>
     </SidebarProvider>
