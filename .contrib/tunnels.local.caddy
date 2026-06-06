@@ -1,3 +1,0 @@
-tunnels.test:80 {
-    reverse_proxy localhost:5730
-}

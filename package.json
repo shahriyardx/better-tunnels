@@ -10,7 +10,7 @@
     "url": "git+https://github.com/shahriyardx/better-tunnels.git"
   },
   "scripts": {
-    "dev": "next dev -p 5730",
+    "dev": "next dev -p 5730 --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "biome check",
