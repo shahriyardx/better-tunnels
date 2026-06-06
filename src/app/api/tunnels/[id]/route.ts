@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { tunnels } from "@/db/schema";
-import { deleteCloudflareTunnel, deleteDnsRecord, stopTunnelProcess } from "@/lib/cloudflared";
+import { deleteCloudflareTunnel, stopTunnelProcess } from "@/lib/cloudflared";
 import { eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 
@@ -28,13 +28,6 @@ export async function DELETE(
 
   const t = tunnel[0];
   stopTunnelProcess(id);
-
-  // Delete DNS CNAME record first
-  try {
-    await deleteDnsRecord(t.domain);
-  } catch {
-    // best effort — user can clean up manually
-  }
 
   // Delete tunnel from Cloudflare
   try {

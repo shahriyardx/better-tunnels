@@ -15,13 +15,6 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Field,
   FieldLabel,
   FieldError,
@@ -31,7 +24,6 @@ import { ArrowLeftIcon, CircleNotchIcon } from "@phosphor-icons/react";
 
 const formSchema = z.object({
   name: z.string().min(1, "Tunnel name is required"),
-  subdomain: z.string().optional().default(""),
   domain: z.string().min(1, "Domain is required"),
   target: z.string().min(1, "Target host is required"),
   port: z.string().refine(
@@ -47,56 +39,33 @@ type FormData = z.output<typeof formSchema>;
 
 export default function NewTunnelPage() {
   const router = useRouter();
-  const [zones, setZones] = useState<string[]>([]);
-  const [zonesLoading, setZonesLoading] = useState(true);
-  const [selectedZone, setSelectedZone] = useState<string>("");
+  const [placeholder, setPlaceholder] = useState("app.yourdomain.com");
+  const [zonesLoaded, setZonesLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/domains")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.zones?.length) setPlaceholder(`app.${data.zones[0]}`);
+      })
+      .catch(() => {})
+      .finally(() => setZonesLoaded(true));
+  }, []);
 
   const {
     control,
     handleSubmit,
-    setValue,
-    getValues,
     formState: { errors, isSubmitting },
     setError,
   } = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      subdomain: "",
       domain: "",
       target: "localhost",
       port: "",
     },
   });
-
-  const computeDomain = (sub: string, zone: string) =>
-    zone ? (sub ? `${sub}.${zone}` : zone) : sub || "";
-
-  const handleSubdomainChange = (value: string) => {
-    const zone = getValues("domain")?.replace(/^[^.]+\./, "") || selectedZone;
-    setValue("domain", computeDomain(value, selectedZone), { shouldValidate: zone ? true : false });
-  };
-
-  const handleZoneChange = (zone: string) => {
-    setSelectedZone(zone);
-    const sub = getValues("subdomain") || "";
-    setValue("domain", computeDomain(sub, zone), { shouldValidate: true });
-  };
-
-  useEffect(() => {
-    fetch("/api/domains")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.domains?.length) {
-          setZones(data.domains);
-          const first = data.domains[0];
-          setSelectedZone(first);
-          setValue("domain", first, { shouldValidate: true });
-        }
-      })
-      .catch(() => {})
-      .finally(() => setZonesLoading(false));
-  }, [setValue]);
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -143,7 +112,7 @@ export default function NewTunnelPage() {
         </header>
 
         <div className="flex flex-1 flex-col gap-4 p-4 max-w-lg mx-auto w-full pt-12">
-          {zonesLoading ? (
+          {!zonesLoaded ? (
             <div className="flex flex-1 items-center justify-center min-h-[300px]">
               <CircleNotchIcon className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
@@ -173,47 +142,18 @@ export default function NewTunnelPage() {
             />
 
             <Controller
-              name="subdomain"
+              name="domain"
               control={control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor={field.name}>Domain</FieldLabel>
-                  <div className="flex items-start gap-1">
-                    <div className="flex-1">
-                      <Input
-                        {...field}
-                        id={field.name}
-                        placeholder="subdomain"
-                        aria-invalid={fieldState.invalid}
-                        autoComplete="off"
-                        onChange={(e) => {
-                          field.onChange(e);
-                          handleSubdomainChange(e.target.value);
-                        }}
-                      />
-                    </div>
-                    <span className="mt-2 text-sm text-muted-foreground font-mono">.</span>
-                    <div className="flex-[3]">
-                      <Select
-                        value={selectedZone}
-                        onValueChange={handleZoneChange}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="domain.com" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {zones.map((zone) => (
-                            <SelectItem key={zone} value={zone}>
-                              {zone}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <FieldDescription>
-                    Subdomain prefix + Cloudflare zone. Example: app.shahriyar.dev
-                  </FieldDescription>
+                  <Input
+                    {...field}
+                    id={field.name}
+                    placeholder={placeholder}
+                    aria-invalid={fieldState.invalid}
+                    autoComplete="off"
+                  />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}

@@ -48,70 +48,6 @@ export function routeDns(name: string, domain: string) {
   execCloudflared(["tunnel", "route", "dns", name, domain]);
 }
 
-// Create DNS CNAME via Cloudflare API (more reliable zone matching)
-export async function routeDnsViaApi(domain: string, tunnelId: string): Promise<void> {
-  const token = getCloudflareApiToken();
-
-  // Get all zones, find the longest suffix match
-  const res = await fetch("https://api.cloudflare.com/client/v4/zones?per_page=100", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const data = await res.json() as { success: boolean; result: Array<{ id: string; name: string }> };
-  if (!data.success || !data.result?.length) throw new Error("No Cloudflare zones found");
-
-  // Sort by name length desc, find first suffix match
-  const zones = data.result.sort((a, b) => b.name.length - a.name.length);
-  const match = zones.find((z) => domain.endsWith(`.${z.name}`) || domain === z.name);
-  if (!match) throw new Error(`No Cloudflare zone found for domain "${domain}". Add it to Cloudflare DNS first.`);
-
-  const zoneId = match.id;
-  const recordName = domain; // Full domain as the record name
-
-  // Check if CNAME already exists
-  const checkRes = await fetch(
-    `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?type=CNAME&name=${encodeURIComponent(recordName)}`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
-  const checkData = await checkRes.json() as { success: boolean; result: Array<{ id: string }> };
-
-  if (checkData.success && checkData.result?.length) {
-    // Already exists - update it
-    await fetch(
-      `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${checkData.result[0].id}`,
-      {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "CNAME",
-          name: recordName,
-          content: `${tunnelId}.cfargottunnel.com`,
-          proxied: true,
-          ttl: 120,
-        }),
-      },
-    );
-    return;
-  }
-
-  // Create new CNAME
-  const createRes = await fetch(
-    `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "CNAME",
-        name: recordName,
-        content: `${tunnelId}.cfargottunnel.com`,
-        proxied: true,
-        ttl: 120,
-      }),
-    },
-  );
-  const createData = await createRes.json() as { success: boolean };
-  if (!createData.success) throw new Error(`Failed to create DNS record for ${domain}`);
-}
-
 export function getCloudflareApiToken(): string {
   const certPath = path.join(homedir(), ".cloudflared", "cert.pem");
   if (!existsSync(certPath)) throw new Error("cloudflared cert.pem not found. Run `cloudflared tunnel login`.");
@@ -130,54 +66,6 @@ export function getCloudflareApiToken(): string {
     if (cert.apiToken || cert.APIToken) return cert.apiToken || cert.APIToken;
   } catch { /* fall through */ }
   throw new Error("Could not extract API token from cert.pem. Re-run `cloudflared tunnel login`.");
-}
-
-export async function listZones(): Promise<{ name: string; id: string }[]> {
-  const token = getCloudflareApiToken();
-  const res = await fetch(
-    "https://api.cloudflare.com/client/v4/zones?per_page=100",
-    { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } },
-  );
-  const data = await res.json() as { success: boolean; result: Array<{ id: string; name: string }> };
-  if (!data.success || !data.result) return [];
-  return data.result.map((z) => ({ name: z.name, id: z.id }));
-}
-
-export async function deleteDnsRecord(domain: string): Promise<void> {
-  const token = getCloudflareApiToken();
-  const zoneName = domain.split(".").slice(-2).join("."); // tunnel.shahriyar.dev → shahriyar.dev
-
-  // Get zone ID
-  const zoneRes = await fetch(
-    `https://api.cloudflare.com/client/v4/zones?name=${encodeURIComponent(zoneName)}`,
-    { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } },
-  );
-  const zoneData = await zoneRes.json() as { success: boolean; result: Array<{ id: string }> };
-  if (!zoneData.success || !zoneData.result?.length) {
-    return; // Can't find zone, skip
-  }
-  const zoneId = zoneData.result[0].id;
-
-  // Find CNAME record for the domain
-  const recordRes = await fetch(
-    `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?type=CNAME&name=${encodeURIComponent(domain)}`,
-    { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } },
-  );
-  const recordData = await recordRes.json() as { success: boolean; result: Array<{ id: string }> };
-  if (!recordData.success || !recordData.result?.length) {
-    return; // No matching record, skip
-  }
-
-  // Delete all matching CNAME records
-  for (const record of recordData.result) {
-    await fetch(
-      `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${record.id}`,
-      {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      },
-    );
-  }
 }
 
 function generateConfigYml(tunnelId: string, credentialsPath: string, domain: string, target: string, port: number): string {

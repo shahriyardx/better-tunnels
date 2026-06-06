@@ -13,7 +13,7 @@ export default function HomePage() {
     fetch("/api/domains")
       .then((r) => r.json())
       .then((data) => {
-        if (data.domains) {
+        if (data.authenticated) {
           router.push("/dashboard");
         } else {
           setStatus({

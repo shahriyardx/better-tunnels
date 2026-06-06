@@ -1,5 +1,4 @@
-import { checkInstallation, listZones } from "@/lib/cloudflared";
-import { NextRequest } from "next/server";
+import { checkInstallation, getCloudflareApiToken } from "@/lib/cloudflared";
 
 export async function GET() {
   const status = checkInstallation();
@@ -12,10 +11,14 @@ export async function GET() {
   }
 
   try {
-    const zones = await listZones();
-    return Response.json({ domains: zones.map((z) => z.name), installed: true, authenticated: true });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to fetch domains";
-    return Response.json({ error: message, installed: true, authenticated: true }, { status: 500 });
+    const token = getCloudflareApiToken();
+    const res = await fetch("https://api.cloudflare.com/client/v4/zones?per_page=50", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json() as { success: boolean; result: Array<{ name: string }> };
+    const zones = data.success && data.result ? data.result.map((z) => z.name) : [];
+    return Response.json({ zones, installed: true, authenticated: true });
+  } catch {
+    return Response.json({ zones: [], installed: true, authenticated: true });
   }
 }
