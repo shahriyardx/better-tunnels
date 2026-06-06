@@ -1,46 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { GlobeIcon, CloudIcon, TerminalIcon, FingerprintIcon } from "@phosphor-icons/react";
-
-interface TunnelStats {
-  total: number;
-  running: number;
-}
+import { api } from "@/trpc/react";
 
 export default function OverviewPage() {
-  const [zones, setZones] = useState<string[]>([]);
-  const [stats, setStats] = useState<TunnelStats | null>(null);
-  const [account, setAccount] = useState<{ accountID: string; zoneID: string } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: domainData, isLoading: domainLoading } = api.domains.list.useQuery();
+  const { data: tunnels, isLoading: tunnelsLoading } = api.tunnels.list.useQuery();
+  const { data: userData, isLoading: userLoading } = api.user.info.useQuery();
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/domains").then((r) => r.json()),
-      fetch("/api/tunnels").then((r) => r.json()),
-      fetch("/api/user").then((r) => r.json()),
-    ])
-      .then(([domainData, tunnelData, userData]) => {
-        if (domainData.zones) setZones(domainData.zones);
-        if (Array.isArray(tunnelData)) {
-          setStats({
-            total: tunnelData.length,
-            running: tunnelData.filter((t: any) => t.status === "running").length,
-          });
-        }
-        if (userData.accountID) setAccount(userData);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
+  if (domainLoading || tunnelsLoading || userLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <p className="text-sm text-muted-foreground">Loading overview...</p>
       </div>
     );
   }
+
+  const zones = domainData?.zones ?? [];
+  const stats = {
+    total: tunnels?.length ?? 0,
+    running: tunnels?.filter((t) => t.status === "running").length ?? 0,
+  };
+  const account = userData?.accountID ? userData : null;
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6 max-w-xl">
@@ -50,7 +31,7 @@ export default function OverviewPage() {
           <div className="flex items-center gap-3">
             <TerminalIcon className="h-5 w-5 text-muted-foreground" />
             <div>
-              <p className="text-2xl font-mono">{stats?.total ?? 0}</p>
+              <p className="text-2xl font-mono">{stats.total}</p>
               <p className="text-xs text-muted-foreground">Total Tunnels</p>
             </div>
           </div>
@@ -59,7 +40,7 @@ export default function OverviewPage() {
           <div className="flex items-center gap-3">
             <CloudIcon className="h-5 w-5 text-green-500" />
             <div>
-              <p className="text-2xl font-mono">{stats?.running ?? 0}</p>
+              <p className="text-2xl font-mono">{stats.running}</p>
               <p className="text-xs text-muted-foreground">Running</p>
             </div>
           </div>

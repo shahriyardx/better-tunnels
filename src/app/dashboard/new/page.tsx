@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -21,6 +21,7 @@ import {
   FieldDescription,
 } from "@/components/ui/field"
 import { CircleNotchIcon } from "@phosphor-icons/react"
+import { api } from "@/trpc/react"
 
 const formSchema = z.object({
   name: z.string().min(1, "Tunnel name is required"),
@@ -37,9 +38,8 @@ type FormData = z.output<typeof formSchema>
 
 export default function NewTunnelPage() {
   const router = useRouter()
-  const [zones, setZones] = useState<string[]>([])
-  const [zonesLoaded, setZonesLoaded] = useState(false)
-  const [selectedZone, setSelectedZone] = useState("")
+  const utils = api.useUtils()
+  const { data: domainData, isLoading: zonesLoading } = api.domains.list.useQuery()
 
   const {
     control,
@@ -59,59 +59,55 @@ export default function NewTunnelPage() {
     },
   })
 
+  const createMutation = api.tunnels.create.useMutation({
+    onSuccess: () => {
+      utils.tunnels.list.invalidate()
+      router.push("/dashboard")
+    },
+    onError: (err) => {
+      setError("root", { message: err.message })
+    },
+  })
+
+  const zones = domainData?.zones ?? []
+
+  // Auto-select first zone when zones load
   useEffect(() => {
-    fetch("/api/domains")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.zones?.length) {
-          setZones(data.zones)
-          const first = data.zones[0]
-          setSelectedZone(first)
-          setValue("domain", first, { shouldValidate: true })
-        }
-      })
-      .catch(() => {})
-      .finally(() => setZonesLoaded(true))
-  }, [setValue])
+    if (zones.length > 0 && !getValues("domain")) {
+      const first = zones[0]
+      setValue("domain", first, { shouldValidate: true })
+    }
+  }, [zones, setValue, getValues])
 
   const computeDomain = (sub: string, zone: string) =>
     zone ? (sub ? `${sub}.${zone}` : zone) : sub || ""
 
   const handleSubdomainChange = (value: string) => {
-    setValue("domain", computeDomain(value, selectedZone), {
+    const zone = getValues("domain")?.split(".").slice(-2).join(".") || zones[0] || ""
+    setValue("domain", computeDomain(value, zone), {
       shouldValidate: false,
     })
   }
 
   const handleZoneChange = (zone: string) => {
-    setSelectedZone(zone)
     const sub = getValues("subdomain") || ""
     setValue("domain", computeDomain(sub, zone), { shouldValidate: true })
   }
 
+  const selectedZone = getValues("domain")?.split(".").slice(-2).join(".") || zones[0] || ""
+
   const onSubmit = async (data: FormData) => {
-    try {
-      const res = await fetch("/api/tunnels", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, port: Number(data.port) }),
-      })
-
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "Failed to create tunnel")
-
-      router.push("/dashboard")
-      router.refresh()
-    } catch (err) {
-      setError("root", {
-        message: err instanceof Error ? err.message : "Failed to create tunnel",
-      })
-    }
+    createMutation.mutate({
+      name: data.name,
+      domain: data.domain,
+      target: data.target,
+      port: Number(data.port),
+    })
   }
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 max-w-lg">
-      {!zonesLoaded ? (
+      {zonesLoading ? (
         <div className="flex flex-1 items-center justify-center min-h-75">
           <CircleNotchIcon className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
@@ -248,12 +244,12 @@ export default function NewTunnelPage() {
               type="button"
               variant="outline"
               onClick={() => router.push("/dashboard")}
-              disabled={isSubmitting}
+              disabled={isSubmitting || createMutation.isPending}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : "Create Tunnel"}
+            <Button type="submit" disabled={isSubmitting || createMutation.isPending}>
+              {createMutation.isPending ? "Creating..." : "Create Tunnel"}
             </Button>
           </div>
         </form>

@@ -1,39 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TerminalIcon } from "@phosphor-icons/react";
+import { api } from "@/trpc/react";
 
 export default function HomePage() {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
-  const [status, setStatus] = useState<{ installed: boolean; authenticated: boolean; message: string | null } | null>(null);
+  const { data, isLoading } = api.domains.list.useQuery();
 
   useEffect(() => {
-    fetch("/api/domains")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.authenticated) {
-          router.push("/dashboard");
-        } else {
-          setStatus({
-            installed: data.installed ?? false,
-            authenticated: data.authenticated ?? false,
-            message: data.error || "cloudflared not detected",
-          });
-        }
-      })
-      .catch(() => {
-        setStatus({
-          installed: false,
-          authenticated: false,
-          message: "Could not reach API",
-        });
-      })
-      .finally(() => setChecking(false));
-  }, [router]);
+    if (data?.authenticated) {
+      router.push("/dashboard");
+    }
+  }, [data, router]);
 
-  if (checking) {
+  if (isLoading || data?.authenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -44,7 +26,11 @@ export default function HomePage() {
     );
   }
 
-  if (!status) return null;
+  const status = {
+    installed: data?.installed ?? false,
+    authenticated: data?.authenticated ?? false,
+    message: data?.error || "cloudflared not detected",
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">

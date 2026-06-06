@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   PlayIcon,
   StopIcon,
   TrashIcon,
-  PlusIcon,
-  ArrowCounterClockwiseIcon,
   DotsThreeOutlineIcon,
   CircleIcon,
   EyeIcon,
 } from "@phosphor-icons/react";
+import { api } from "@/trpc/react";
 
 type TunnelStatus = "stopped" | "running" | "error" | "creating";
 
@@ -25,8 +24,8 @@ interface Tunnel {
   cloudflareTunnelId: string | null;
   status: TunnelStatus;
   pid: number | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const STATUS_COLORS: Record<TunnelStatus, string> = {
@@ -41,20 +40,18 @@ function TunnelCard({
   onStart,
   onStop,
   onDelete,
-  loading,
+  disabled,
 }: {
   tunnel: Tunnel;
   onStart: (id: string) => void;
   onStop: (id: string) => void;
   onDelete: (id: string) => void;
-  loading: boolean;
+  disabled: boolean;
 }) {
   const router = useRouter();
-  const [deleting, setDeleting] = useState(false);
 
   const handleDelete = () => {
     if (!confirm(`Delete tunnel "${tunnel.name}"? This cannot be undone.`)) return;
-    setDeleting(true);
     onDelete(tunnel.id);
   };
 
@@ -98,7 +95,7 @@ function TunnelCard({
               variant="outline"
               size="sm"
               onClick={() => onStop(tunnel.id)}
-              disabled={loading}
+              disabled={disabled}
               className="gap-1.5"
             >
               <StopIcon className="h-3.5 w-3.5" />
@@ -109,7 +106,7 @@ function TunnelCard({
               variant="default"
               size="sm"
               onClick={() => onStart(tunnel.id)}
-              disabled={loading || tunnel.status === "creating"}
+              disabled={disabled || tunnel.status === "creating"}
               className="gap-1.5"
             >
               <PlayIcon className="h-3.5 w-3.5" />
@@ -129,7 +126,7 @@ function TunnelCard({
             variant="destructive"
             size="sm"
             onClick={handleDelete}
-            disabled={deleting}
+            disabled={disabled}
             className="gap-1.5"
           >
             <TrashIcon className="h-3.5 w-3.5" />
@@ -179,117 +176,66 @@ function LoadingSkeleton() {
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [tunnels, setTunnels] = useState<Tunnel[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const utils = api.useUtils();
+  const { data: tunnels, isLoading, error } = api.tunnels.list.useQuery(undefined, {
+    refetchInterval: (query) =>
+      query.state.data?.some((t) => t.status === "running") ? 10_000 : false,
+  });
+  const reconcileMutation = api.tunnels.reconcile.useMutation();
 
-  const fetchTunnels = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/tunnels");
-      if (!res.ok) throw new Error(`Failed to fetch tunnels (${res.status})`);
-      const data = await res.json();
-      setTunnels(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load tunnels");
-    } finally {
-      setLoading(false);
-    }
+  const startMutation = api.tunnels.start.useMutation({
+    onSuccess: () => utils.tunnels.list.invalidate(),
+    onError: (err) => alert(err.message),
+  });
+
+  const stopMutation = api.tunnels.stop.useMutation({
+    onSuccess: () => utils.tunnels.list.invalidate(),
+    onError: (err) => alert(err.message),
+  });
+
+  const deleteMutation = api.tunnels.delete.useMutation({
+    onSuccess: () => utils.tunnels.list.invalidate(),
+    onError: (err) => alert(err.message),
+  });
+
+  useEffect(() => {
+    reconcileMutation.mutate();
   }, []);
 
-  useEffect(() => {
-    // Reconcile stale tunnel statuses (check if PIDs still alive)
-    fetch("/api/tunnels/reconcile", { method: "POST" }).catch(() => {});
-    fetchTunnels();
-  }, [fetchTunnels]);
-
-  // Poll status every 10s for running tunnels
-  useEffect(() => {
-    if (!tunnels.some((t) => t.status === "running")) return;
-    const interval = setInterval(fetchTunnels, 10_000);
-    return () => clearInterval(interval);
-  }, [tunnels, fetchTunnels]);
-
-  const handleStart = async (id: string) => {
-    setActionLoading(id);
-    try {
-      const res = await fetch(`/api/tunnels/${id}/start`, { method: "POST" });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to start tunnel");
-      }
-      await fetchTunnels();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to start tunnel");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleStop = async (id: string) => {
-    setActionLoading(id);
-    try {
-      const res = await fetch(`/api/tunnels/${id}/stop`, { method: "POST" });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to stop tunnel");
-      }
-      await fetchTunnels();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to stop tunnel");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      const res = await fetch(`/api/tunnels/${id}`, { method: "DELETE" });
-      if (!res.ok && res.status !== 204) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to delete tunnel");
-      }
-      await fetchTunnels();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete tunnel");
-    }
-  };
-
-  const runningCount = tunnels.filter((t) => t.status === "running").length;
+  const actionLoading =
+    startMutation.isPending ||
+    stopMutation.isPending ||
+    deleteMutation.isPending;
 
   return (
-
-        <div className="flex flex-1 flex-col gap-4 p-4">
-          {error && (
-            <div className="rounded-none border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-              <p>{error}</p>
-              <Button variant="outline" size="sm" onClick={fetchTunnels} className="mt-2">
-                Retry
-              </Button>
-            </div>
-          )}
-
-          {loading ? (
-            <LoadingSkeleton />
-          ) : tunnels.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="flex flex-col gap-4">
-              {tunnels.map((tunnel) => (
-                <TunnelCard
-                  key={tunnel.id}
-                  tunnel={tunnel}
-                  onStart={handleStart}
-                  onStop={handleStop}
-                  onDelete={handleDelete}
-                  loading={actionLoading === tunnel.id}
-                />
-              ))}
-            </div>
-          )}
+    <div className="flex flex-1 flex-col gap-4 p-4">
+      {error && (
+        <div className="rounded-none border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+          <p>{error.message}</p>
+          <Button variant="outline" size="sm" onClick={() => utils.tunnels.list.refetch()} className="mt-2">
+            Retry
+          </Button>
         </div>
+      )}
+
+      {isLoading ? (
+        <LoadingSkeleton />
+      ) : !tunnels || tunnels.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="flex flex-col gap-4">
+          {tunnels.map((tunnel) => (
+            <TunnelCard
+              key={tunnel.id}
+              tunnel={tunnel}
+              onStart={(id) => startMutation.mutate(id)}
+              onStop={(id) => stopMutation.mutate(id)}
+              onDelete={(id) => deleteMutation.mutate(id)}
+              disabled={actionLoading}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

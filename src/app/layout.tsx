@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { TRPCProvider } from "@/trpc/provider";
 import { cn } from "@/lib/utils";
 
 const jetbrainsMono = JetBrains_Mono({
@@ -44,7 +45,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-          <TooltipProvider>{children}</TooltipProvider>
+          <TooltipProvider>
+            <TRPCProvider>{children}</TRPCProvider>
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>
