@@ -1,5 +1,5 @@
 import {
-  BookOpenIcon,
+  GaugeIcon,
   TerminalIcon,
   PlusIcon,
 } from "@phosphor-icons/react";
@@ -16,7 +16,7 @@ export const navMain: NavItem[] = [
   {
     title: "Overview",
     url: "/dashboard",
-    icon: <TerminalIcon />,
+    icon: <GaugeIcon />,
     isActive: true,
   },
   {
@@ -28,16 +28,5 @@ export const navMain: NavItem[] = [
     title: "New Tunnel",
     url: "/dashboard/new",
     icon: <PlusIcon />,
-  },
-  {
-    title: "Documentation",
-    url: "#",
-    icon: <BookOpenIcon />,
-    items: [
-      {
-        title: "Cloudflare Tunnels",
-        url: "https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/",
-      },
-    ],
   },
 ];

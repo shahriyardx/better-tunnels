@@ -51,7 +51,7 @@ export default function HomePage() {
       <div className="max-w-md w-full space-y-6">
         <div className="flex items-center gap-3 mb-8">
           <TerminalIcon className="h-6 w-6" />
-          <h1 className="text-lg font-medium">CloudTunnel</h1>
+          <h1 className="text-lg font-medium">BetterTunnels</h1>
         </div>
 
         <div className="rounded-xl border bg-card p-6 space-y-4">

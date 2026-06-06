@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GlobeIcon, CloudIcon, TerminalIcon } from "@phosphor-icons/react";
+import { GlobeIcon, CloudIcon, TerminalIcon, FingerprintIcon } from "@phosphor-icons/react";
 
 interface TunnelStats {
   total: number;
@@ -11,14 +11,16 @@ interface TunnelStats {
 export default function OverviewPage() {
   const [zones, setZones] = useState<string[]>([]);
   const [stats, setStats] = useState<TunnelStats | null>(null);
+  const [account, setAccount] = useState<{ accountID: string; zoneID: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/domains").then((r) => r.json()),
       fetch("/api/tunnels").then((r) => r.json()),
+      fetch("/api/user").then((r) => r.json()),
     ])
-      .then(([domainData, tunnelData]) => {
+      .then(([domainData, tunnelData, userData]) => {
         if (domainData.zones) setZones(domainData.zones);
         if (Array.isArray(tunnelData)) {
           setStats({
@@ -26,6 +28,7 @@ export default function OverviewPage() {
             running: tunnelData.filter((t: any) => t.status === "running").length,
           });
         }
+        if (userData.accountID) setAccount(userData);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -62,6 +65,32 @@ export default function OverviewPage() {
           </div>
         </div>
       </div>
+
+      {/* Account */}
+      {account && (
+        <div>
+          <h2 className="text-base font-medium">Account</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Cloudflare credentials from cert.pem
+          </p>
+          <div className="border bg-card p-5 mt-3 space-y-3">
+            <div className="flex items-center gap-3">
+              <FingerprintIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-xs text-muted-foreground">Account ID</p>
+                <p className="text-sm font-mono">{account.accountID}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <FingerprintIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-xs text-muted-foreground">Zone ID</p>
+                <p className="text-sm font-mono">{account.zoneID}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Zones */}
       <div>

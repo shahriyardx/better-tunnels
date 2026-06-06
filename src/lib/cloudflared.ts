@@ -141,6 +141,15 @@ export function getCloudflareApiToken(): string {
   throw new Error("Could not extract API token from cert.pem. Re-run `cloudflared tunnel login`.");
 }
 
+export function getCertAccountInfo(): { accountID: string; zoneID: string } {
+  const certPath = path.join(homedir(), ".cloudflared", "cert.pem");
+  if (!existsSync(certPath)) throw new Error("cert.pem not found. Run `cloudflared tunnel login`.");
+  const raw = readFileSync(certPath, "utf-8");
+  const b64 = raw.replace(/-----BEGIN[^]+?-----/g, "").replace(/-----END[^]+?-----/g, "").replace(/\s/g, "");
+  const decoded = JSON.parse(Buffer.from(b64, "base64").toString());
+  return { accountID: decoded.accountID || "", zoneID: decoded.zoneID || "" };
+}
+
 function generateConfigYml(tunnelId: string, credentialsPath: string, domain: string, target: string, port: number): string {
   return `tunnel: ${tunnelId}
 credentials-file: ${credentialsPath}
