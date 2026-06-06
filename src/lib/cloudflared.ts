@@ -44,8 +44,79 @@ export function deleteCloudflareTunnel(name: string) {
   execCloudflared(["tunnel", "delete", "-f", name]);
 }
 
-export function routeDns(name: string, domain: string) {
-  execCloudflared(["tunnel", "route", "dns", name, domain]);
+export async function routeDnsViaApi(tunnelId: string, domain: string, apiToken: string) {
+  const parts = domain.split(".");
+  const zoneName = parts.slice(-2).join(".");
+
+  // 1. Get zone ID for the domain
+  const zonesRes = await fetch(
+    `https://api.cloudflare.com/client/v4/zones?name=${zoneName}`,
+    { headers: { Authorization: `Bearer ${apiToken}` } }
+  );
+  const zonesData = await zonesRes.json() as { success: boolean; result: Array<{ id: string; name: string }> };
+  const zone = zonesData.result?.[0];
+  if (!zone) throw new Error(`Zone not found for domain: ${zoneName}`);
+
+  // 2. Try to create CNAME record pointing to the tunnel
+  const body = JSON.stringify({
+    type: "CNAME",
+    name: domain,
+    content: `${tunnelId}.cfargotunnel.com`,
+    proxied: true,
+    ttl: 1,
+  });
+
+  const recordRes = await fetch(
+    `https://api.cloudflare.com/client/v4/zones/${zone.id}/dns_records`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
+      },
+      body,
+    }
+  );
+
+  const recordData = await recordRes.json() as { success: boolean; errors?: Array<{ code: number }> };
+
+  if (!recordData.success) {
+    // Error code 81057 = record already exists, so patch it instead
+    const alreadyExists = recordData.errors?.some((e) => e.code === 81057);
+
+    if (alreadyExists) {
+      const listRes = await fetch(
+        `https://api.cloudflare.com/client/v4/zones/${zone.id}/dns_records?name=${domain}&type=CNAME`,
+        { headers: { Authorization: `Bearer ${apiToken}` } }
+      );
+      const listData = await listRes.json() as { success: boolean; result: Array<{ id: string }> };
+      const recordId = listData.result?.[0]?.id;
+
+      if (!recordId) throw new Error(`CNAME record exists but could not be found for: ${domain}`);
+
+      const patchRes = await fetch(
+        `https://api.cloudflare.com/client/v4/zones/${zone.id}/dns_records/${recordId}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${apiToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            content: `${tunnelId}.cfargotunnel.com`,
+            proxied: true,
+          }),
+        }
+      );
+
+      const patchData = await patchRes.json() as { success: boolean; errors?: Array<{ message: string }> };
+      if (!patchData.success) {
+        throw new Error(`Failed to update existing CNAME record: ${JSON.stringify(patchData.errors)}`);
+      }
+    } else {
+      throw new Error(`DNS record creation failed: ${JSON.stringify(recordData.errors)}`);
+    }
+  }
 }
 
 export function getCloudflareApiToken(): string {

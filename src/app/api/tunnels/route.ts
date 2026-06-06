@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { tunnels } from "@/db/schema";
-import { checkInstallation, createCloudflareTunnel, deleteCloudflareTunnel, routeDns } from "@/lib/cloudflared";
+import { checkInstallation, createCloudflareTunnel, deleteCloudflareTunnel, getCloudflareApiToken, routeDnsViaApi } from "@/lib/cloudflared";
 import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
@@ -33,17 +33,11 @@ export async function POST(request: NextRequest) {
     createdTunnelName = name;
 
     try {
-      routeDns(name, domain);
+      const apiToken = getCloudflareApiToken();
+      await routeDnsViaApi(tunnelId, domain, apiToken);
     } catch (dnsErr) {
       // Rollback: delete tunnel if DNS routing fails
       deleteCloudflareTunnel(name);
-      const msg = dnsErr instanceof Error ? dnsErr.message : "";
-      if (msg.includes("1003") || msg.includes("already exists")) {
-        return Response.json(
-          { error: `Domain "${domain}" already has a DNS record in Cloudflare. Use a different domain or remove the existing record first.` },
-          { status: 409 },
-        );
-      }
       throw dnsErr;
     }
 
