@@ -143,7 +143,7 @@ export default function TunnelDetailPage() {
 
         <div className="flex flex-1 flex-col gap-4 p-4">
           {/* Tunnel info card */}
-          <div className="rounded-xl border bg-card p-5 space-y-4">
+          <div className="rounded-none border bg-card p-5 space-y-4">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -182,7 +182,7 @@ export default function TunnelDetailPage() {
                   Start
                 </Button>
               )}
-              <Button variant="ghost" size="sm" onClick={handleDelete} disabled={actionLoading} className="gap-1.5 text-destructive hover:text-destructive">
+              <Button variant="destructive" size="sm" onClick={handleDelete} disabled={actionLoading} className="gap-1.5">
                 <TrashIcon className="h-3.5 w-3.5" />
                 Delete
               </Button>
@@ -190,7 +190,7 @@ export default function TunnelDetailPage() {
           </div>
 
           {/* Live logs */}
-          <div className="rounded-xl border bg-card">
+          <div className="rounded-none border bg-card">
             <div className="flex items-center justify-between px-5 py-3 border-b">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <TerminalIcon className="h-4 w-4" />
