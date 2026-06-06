@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm, Controller } from "react-hook-form"
+import { useForm, Controller, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod/v4"
 import { Button } from "@/components/ui/button"
@@ -26,7 +26,6 @@ import { api } from "@/trpc/react"
 const formSchema = z.object({
   name: z.string().min(1, "Tunnel name is required"),
   subdomain: z.string().optional().default(""),
-  domain: z.string().min(1, "Domain is required"),
   target: z.string().min(1, "Target host is required"),
   port: z.string().refine((v) => {
     const n = Number(v)
@@ -44,8 +43,6 @@ export default function NewTunnelPage() {
   const {
     control,
     handleSubmit,
-    setValue,
-    getValues,
     formState: { errors, isSubmitting },
     setError,
   } = useForm({
@@ -53,7 +50,6 @@ export default function NewTunnelPage() {
     defaultValues: {
       name: "",
       subdomain: "",
-      domain: "",
       target: "localhost",
       port: "",
     },
@@ -70,36 +66,27 @@ export default function NewTunnelPage() {
   })
 
   const zones = domainData?.zones ?? []
+  const [selectedZone, setSelectedZone] = useState("")
+  const watchedSubdomain = useWatch({ control, name: "subdomain" })
 
   // Auto-select first zone when zones load
   useEffect(() => {
-    if (zones.length > 0 && !getValues("domain")) {
-      const first = zones[0]
-      setValue("domain", first, { shouldValidate: true })
+    if (zones.length > 0 && !selectedZone) {
+      setSelectedZone(zones[0])
     }
-  }, [zones, setValue, getValues])
+  }, [zones, selectedZone])
 
-  const computeDomain = (sub: string, zone: string) =>
-    zone ? (sub ? `${sub}.${zone}` : zone) : sub || ""
-
-  const handleSubdomainChange = (value: string) => {
-    const zone = getValues("domain")?.split(".").slice(-2).join(".") || zones[0] || ""
-    setValue("domain", computeDomain(value, zone), {
-      shouldValidate: false,
-    })
-  }
-
-  const handleZoneChange = (zone: string) => {
-    const sub = getValues("subdomain") || ""
-    setValue("domain", computeDomain(sub, zone), { shouldValidate: true })
-  }
-
-  const selectedZone = getValues("domain")?.split(".").slice(-2).join(".") || zones[0] || ""
+  const fullDomain = selectedZone
+    ? watchedSubdomain
+      ? `${watchedSubdomain}.${selectedZone}`
+      : selectedZone
+    : watchedSubdomain || ""
 
   const onSubmit = async (data: FormData) => {
+    if (!selectedZone) return
     createMutation.mutate({
       name: data.name,
-      domain: data.domain,
+      domain: fullDomain,
       target: data.target,
       port: Number(data.port),
     })
@@ -150,10 +137,7 @@ export default function NewTunnelPage() {
                       placeholder="subdomain"
                       aria-invalid={fieldState.invalid}
                       autoComplete="off"
-                      onChange={(e) => {
-                        field.onChange(e)
-                        handleSubdomainChange(e.target.value)
-                      }}
+                      onChange={(e) => field.onChange(e)}
                     />
                   </div>
                   <span className="mt-2 text-sm text-muted-foreground font-mono">
@@ -162,7 +146,7 @@ export default function NewTunnelPage() {
                   <div className="flex-3">
                     <Select
                       value={selectedZone}
-                      onValueChange={handleZoneChange}
+                      onValueChange={setSelectedZone}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="domain.com" />
