@@ -1,0 +1,16 @@
+[Unit]
+Description=BetterTunnels — Cloudflare Tunnel Manager
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=exec
+WorkingDirectory=/home/shahriyar/dev/next/cloudtunnel
+ExecStartPre=/usr/bin/docker compose up -d
+ExecStart=/home/shahriyar/.bun/bin/bun run dev
+Restart=on-failure
+RestartSec=5
+Environment=PORT=5730
+
+[Install]
+WantedBy=default.target
