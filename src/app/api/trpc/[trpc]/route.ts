@@ -1,6 +1,6 @@
-import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { appRouter } from "@/server/routers";
-import { NextRequest } from "next/server";
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch"
+import { appRouter } from "@/server/routers"
+import { NextRequest } from "next/server"
 
 const handler = (req: NextRequest) =>
   fetchRequestHandler({
@@ -8,6 +8,6 @@ const handler = (req: NextRequest) =>
     req,
     router: appRouter,
     createContext: () => ({}),
-  });
+  })
 
-export { handler as GET, handler as POST };
+export { handler as GET, handler as POST }

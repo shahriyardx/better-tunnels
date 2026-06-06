@@ -1,22 +1,26 @@
-"use client";
+"use client"
 
-import { usePathname } from "next/navigation";
-import { AppSidebar } from "@/components/app-sidebar";
+import { usePathname } from "next/navigation"
+import { AppSidebar } from "@/components/app-sidebar"
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar";
+} from "@/components/ui/sidebar"
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Overview",
   "/dashboard/tunnels": "Tunnels",
   "/dashboard/new": "New Tunnel",
-};
+}
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const title = PAGE_TITLES[pathname] || "Tunnel";
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const pathname = usePathname()
+  const title = PAGE_TITLES[pathname] || "Tunnel"
 
   return (
     <SidebarProvider>
@@ -29,5 +33,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {children}
       </SidebarInset>
     </SidebarProvider>
-  );
+  )
 }

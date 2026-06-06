@@ -1,8 +1,8 @@
-"use client";
+"use client"
 
-import { useEffect, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { useEffect, useRef } from "react"
+import { useRouter, useParams } from "next/navigation"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogTrigger,
@@ -12,7 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-} from "@/components/ui/dialog";
+} from "@/components/ui/dialog"
 import {
   PlayIcon,
   StopIcon,
@@ -20,70 +20,72 @@ import {
   CircleIcon,
   TerminalIcon,
   CircleNotchIcon,
-} from "@phosphor-icons/react";
-import { api } from "@/trpc/react";
+} from "@phosphor-icons/react"
+import { api } from "@/trpc/react"
 
-type TunnelStatus = "stopped" | "running" | "error" | "creating";
+type TunnelStatus = "stopped" | "running" | "error" | "creating"
 
 const STATUS_COLORS: Record<TunnelStatus, string> = {
   running: "text-green-500",
   stopped: "text-gray-400",
   error: "text-red-500",
   creating: "text-yellow-500",
-};
+}
 
 export default function TunnelDetailPage() {
-  const router = useRouter();
-  const params = useParams();
-  const id = params.id as string;
-  const logEndRef = useRef<HTMLDivElement>(null);
-  const utils = api.useUtils();
+  const router = useRouter()
+  const params = useParams()
+  const id = params.id as string
+  const logEndRef = useRef<HTMLDivElement>(null)
+  const utils = api.useUtils()
 
-  const { data: tunnel, isLoading, error } = api.tunnels.byId.useQuery(id);
+  const { data: tunnel, isLoading, error } = api.tunnels.byId.useQuery(id)
   const { data: logs = [] } = api.tunnels.logs.useQuery(id, {
     refetchInterval: 2_000,
-  });
+  })
 
   const startMutation = api.tunnels.start.useMutation({
     onSuccess: () => {
-      utils.tunnels.byId.invalidate(id);
-      utils.tunnels.list.invalidate();
+      utils.tunnels.byId.invalidate(id)
+      utils.tunnels.list.invalidate()
     },
     onError: (err) => alert(err.message),
-  });
+  })
 
   const stopMutation = api.tunnels.stop.useMutation({
     onSuccess: () => {
-      utils.tunnels.byId.invalidate(id);
-      utils.tunnels.list.invalidate();
+      utils.tunnels.byId.invalidate(id)
+      utils.tunnels.list.invalidate()
     },
     onError: (err) => alert(err.message),
-  });
+  })
 
   const deleteMutation = api.tunnels.delete.useMutation({
     onSuccess: () => router.push("/dashboard"),
     onError: (err) => alert(err.message),
-  });
+  })
 
   // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
     if (logs.length > 0) {
-      logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      logEndRef.current?.scrollIntoView({ behavior: "smooth" })
     }
-  }, [logs]);
+  }, [logs])
 
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <p className="text-sm text-muted-foreground">Loading tunnel...</p>
       </div>
-    );
+    )
   }
 
   if (error || !tunnel) {
     return (
-      <div className="p-4 text-sm text-destructive">{error?.message ?? "Tunnel not found"}</div>
-    );
+      <div className="p-4 text-sm text-destructive">
+        {error?.message ?? "Tunnel not found"}
+      </div>
+    )
   }
 
   return (
@@ -93,22 +95,33 @@ export default function TunnelDetailPage() {
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <CircleIcon className={`h-3 w-3 fill-current ${STATUS_COLORS[tunnel.status]}`} weight="fill" />
+              <CircleIcon
+                className={`h-3 w-3 fill-current ${STATUS_COLORS[tunnel.status]}`}
+                weight="fill"
+              />
               <h2 className="text-base font-medium">{tunnel.name}</h2>
             </div>
-            <p className="text-sm text-muted-foreground font-mono">{tunnel.domain}</p>
+            <p className="text-sm text-muted-foreground font-mono">
+              {tunnel.domain}
+            </p>
           </div>
-          <span className="text-xs uppercase text-muted-foreground font-mono">{tunnel.status}</span>
+          <span className="text-xs uppercase text-muted-foreground font-mono">
+            {tunnel.status}
+          </span>
         </div>
 
         <div className="grid grid-cols-3 gap-4 text-sm">
           <div>
             <span className="text-muted-foreground">Target</span>
-            <p className="font-mono">{tunnel.target}:{tunnel.port}</p>
+            <p className="font-mono">
+              {tunnel.target}:{tunnel.port}
+            </p>
           </div>
           <div>
             <span className="text-muted-foreground">Tunnel ID</span>
-            <p className="font-mono text-xs truncate">{tunnel.cloudflareTunnelId}</p>
+            <p className="font-mono text-xs truncate">
+              {tunnel.cloudflareTunnelId}
+            </p>
           </div>
           <div>
             <span className="text-muted-foreground">PID</span>
@@ -118,7 +131,13 @@ export default function TunnelDetailPage() {
 
         <div className="flex items-center gap-2">
           {tunnel.status === "running" ? (
-            <Button variant="outline" size="sm" onClick={() => stopMutation.mutate(id)} disabled={stopMutation.isPending} className="gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => stopMutation.mutate(id)}
+              disabled={stopMutation.isPending}
+              className="gap-1.5"
+            >
               {stopMutation.isPending ? (
                 <CircleNotchIcon className="h-3.5 w-3.5 animate-spin" />
               ) : (
@@ -127,7 +146,13 @@ export default function TunnelDetailPage() {
               {stopMutation.isPending ? "Stopping..." : "Stop"}
             </Button>
           ) : (
-            <Button variant="default" size="sm" onClick={() => startMutation.mutate(id)} disabled={startMutation.isPending} className="gap-1.5">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => startMutation.mutate(id)}
+              disabled={startMutation.isPending}
+              className="gap-1.5"
+            >
               {startMutation.isPending ? (
                 <CircleNotchIcon className="h-3.5 w-3.5 animate-spin" />
               ) : (
@@ -138,7 +163,16 @@ export default function TunnelDetailPage() {
           )}
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="destructive" size="sm" disabled={deleteMutation.isPending || startMutation.isPending || stopMutation.isPending} className="gap-1.5">
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={
+                  deleteMutation.isPending ||
+                  startMutation.isPending ||
+                  stopMutation.isPending
+                }
+                className="gap-1.5"
+              >
                 <TrashIcon className="h-3.5 w-3.5" />
                 Delete
               </Button>
@@ -153,7 +187,9 @@ export default function TunnelDetailPage() {
               </DialogHeader>
               <DialogFooter>
                 <DialogClose asChild>
-                  <Button variant="outline" size="sm">Cancel</Button>
+                  <Button variant="outline" size="sm">
+                    Cancel
+                  </Button>
                 </DialogClose>
                 <Button
                   variant="destructive"
@@ -180,7 +216,9 @@ export default function TunnelDetailPage() {
             <TerminalIcon className="h-4 w-4" />
             Live Logs
           </div>
-          <span className="text-xs text-muted-foreground">{logs.length} lines</span>
+          <span className="text-xs text-muted-foreground">
+            {logs.length} lines
+          </span>
         </div>
         <div className="p-4 max-h-125 overflow-y-auto">
           {logs.length === 0 ? (
@@ -198,5 +236,5 @@ export default function TunnelDetailPage() {
         </div>
       </div>
     </div>
-  );
+  )
 }

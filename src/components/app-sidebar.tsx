@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { useTheme } from "next-themes"
 
 import { NavMain } from "@/components/nav-main"
@@ -16,8 +15,9 @@ import {
 } from "@/components/ui/sidebar"
 import { CloudIcon, SunIcon, MoonIcon } from "@phosphor-icons/react"
 import { navMain } from "@/lib/navigation"
+import type { ComponentProps } from "react"
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const { theme, setTheme } = useTheme()
 
   return (
@@ -25,7 +25,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader className="border-b bg-muted/30">
         <div className="flex items-center gap-2 px-4 py-2 group-data-[collapsible=icon]:justify-center">
           <CloudIcon className="h-5 w-5 shrink-0" />
-          <span className="text-sm font-semibold group-data-[collapsible=icon]:hidden">BetterTunnels</span>
+          <span className="text-sm font-semibold group-data-[collapsible=icon]:hidden">
+            BetterTunnels
+          </span>
         </div>
       </SidebarHeader>
       <SidebarContent>

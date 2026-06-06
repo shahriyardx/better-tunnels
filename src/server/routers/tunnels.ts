@@ -1,6 +1,6 @@
-import { z } from "zod";
-import { db } from "@/db";
-import { tunnels } from "@/db/schema";
+import { z } from "zod"
+import { db } from "@/db"
+import { tunnels } from "@/db/schema"
 import {
   checkInstallation,
   createCloudflareTunnel,
@@ -12,14 +12,14 @@ import {
   stopTunnelProcess,
   getTunnelLogs,
   getAlivePids,
-} from "@/lib/cloudflared";
-import { eq, inArray } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
-import { t } from "../trpc";
+} from "@/lib/cloudflared"
+import { eq, inArray } from "drizzle-orm"
+import { randomUUID } from "node:crypto"
+import { t } from "../trpc"
 
 export const tunnelsRouter = t.router({
   list: t.procedure.query(async () => {
-    return db.select().from(tunnels).orderBy(tunnels.createdAt);
+    return db.select().from(tunnels).orderBy(tunnels.createdAt)
   }),
 
   byId: t.procedure.input(z.string()).query(async ({ input: id }) => {
@@ -27,11 +27,11 @@ export const tunnelsRouter = t.router({
       .select()
       .from(tunnels)
       .where(eq(tunnels.id, id))
-      .limit(1);
+      .limit(1)
     if (!tunnel.length) {
-      throw new Error("Tunnel not found");
+      throw new Error("Tunnel not found")
     }
-    return tunnel[0];
+    return tunnel[0]
   }),
 
   create: t.procedure
@@ -44,27 +44,27 @@ export const tunnelsRouter = t.router({
       }),
     )
     .mutation(async ({ input }) => {
-      const status = checkInstallation();
+      const status = checkInstallation()
       if (!status.installed || !status.authenticated) {
-        throw new Error(status.message ?? "cloudflared not ready");
+        throw new Error(status.message ?? "cloudflared not ready")
       }
 
-      const { name, domain, port, target } = input;
+      const { name, domain, port, target } = input
 
-      let createdTunnelName: string | null = null;
+      let createdTunnelName: string | null = null
       try {
-        const { tunnelId } = createCloudflareTunnel(name);
-        createdTunnelName = name;
+        const { tunnelId } = createCloudflareTunnel(name)
+        createdTunnelName = name
 
         try {
-          const apiToken = getCloudflareApiToken();
-          await routeDnsViaApi(tunnelId, domain, apiToken);
+          const apiToken = getCloudflareApiToken()
+          await routeDnsViaApi(tunnelId, domain, apiToken)
         } catch (dnsErr) {
-          deleteCloudflareTunnel(name);
-          throw dnsErr;
+          deleteCloudflareTunnel(name)
+          throw dnsErr
         }
 
-        const id = randomUUID();
+        const id = randomUUID()
         const tunnel = {
           id,
           name,
@@ -76,9 +76,9 @@ export const tunnelsRouter = t.router({
           pid: null as number | null,
           createdAt: new Date(),
           updatedAt: new Date(),
-        };
+        }
 
-        await db.insert(tunnels).values(tunnel);
+        await db.insert(tunnels).values(tunnel)
 
         // Auto-start the tunnel after creation
         try {
@@ -89,25 +89,27 @@ export const tunnelsRouter = t.router({
             domain,
             target,
             port,
-          );
+          )
           await db
             .update(tunnels)
             .set({ status: "running", pid, updatedAt: new Date() })
-            .where(eq(tunnels.id, id));
-          return { ...tunnel, status: "running" as const, pid };
+            .where(eq(tunnels.id, id))
+          return { ...tunnel, status: "running" as const, pid }
         } catch {
           // Auto-start failed, return tunnel as created but not running
-          return tunnel;
+          return tunnel
         }
       } catch (err) {
         if (createdTunnelName) {
           try {
-            deleteCloudflareTunnel(createdTunnelName);
-          } catch { /* ignore */ }
+            deleteCloudflareTunnel(createdTunnelName)
+          } catch {
+            /* ignore */
+          }
         }
         throw new Error(
           err instanceof Error ? err.message : "Failed to create tunnel",
-        );
+        )
       }
     }),
 
@@ -116,49 +118,53 @@ export const tunnelsRouter = t.router({
       .select()
       .from(tunnels)
       .where(eq(tunnels.id, id))
-      .limit(1);
+      .limit(1)
     if (!tunnel.length) {
-      throw new Error("Tunnel not found");
+      throw new Error("Tunnel not found")
     }
 
-    const t = tunnel[0];
-    stopTunnelProcess(id);
+    const t = tunnel[0]
+    stopTunnelProcess(id)
 
     try {
-      deleteCloudflareTunnel(t.name);
-    } catch { /* may already be deleted */ }
+      deleteCloudflareTunnel(t.name)
+    } catch {
+      /* may already be deleted */
+    }
 
     // Delete DNS CNAME record
     try {
-      const apiToken = getCloudflareApiToken();
-      await deleteDnsRecord(t.domain, apiToken);
-    } catch { /* record may already be gone */ }
+      const apiToken = getCloudflareApiToken()
+      await deleteDnsRecord(t.domain, apiToken)
+    } catch {
+      /* record may already be gone */
+    }
 
-    await db.delete(tunnels).where(eq(tunnels.id, id));
+    await db.delete(tunnels).where(eq(tunnels.id, id))
   }),
 
   start: t.procedure.input(z.string()).mutation(async ({ input: id }) => {
-    const status = checkInstallation();
+    const status = checkInstallation()
     if (!status.installed || !status.authenticated) {
-      throw new Error(status.message ?? "cloudflared not ready");
+      throw new Error(status.message ?? "cloudflared not ready")
     }
 
     const tunnel = await db
       .select()
       .from(tunnels)
       .where(eq(tunnels.id, id))
-      .limit(1);
+      .limit(1)
     if (!tunnel.length) {
-      throw new Error("Tunnel not found");
+      throw new Error("Tunnel not found")
     }
 
-    const t = tunnel[0];
+    const t = tunnel[0]
     if (t.status === "running") {
-      throw new Error("Tunnel already running");
+      throw new Error("Tunnel already running")
     }
 
     if (!t.cloudflareTunnelId) {
-      throw new Error("Cloudflare tunnel ID missing. Re-create the tunnel.");
+      throw new Error("Cloudflare tunnel ID missing. Re-create the tunnel.")
     }
 
     try {
@@ -169,22 +175,22 @@ export const tunnelsRouter = t.router({
         t.domain,
         t.target,
         t.port,
-      );
+      )
       await db
         .update(tunnels)
         .set({ status: "running", pid, updatedAt: new Date() })
-        .where(eq(tunnels.id, id));
+        .where(eq(tunnels.id, id))
 
-      return { pid, status: "running" as const };
+      return { pid, status: "running" as const }
     } catch (err) {
       await db
         .update(tunnels)
         .set({ status: "error", updatedAt: new Date() })
-        .where(eq(tunnels.id, id));
+        .where(eq(tunnels.id, id))
 
       throw new Error(
         err instanceof Error ? err.message : "Failed to start tunnel",
-      );
+      )
     }
   }),
 
@@ -193,45 +199,45 @@ export const tunnelsRouter = t.router({
       .select()
       .from(tunnels)
       .where(eq(tunnels.id, id))
-      .limit(1);
+      .limit(1)
     if (!tunnel.length) {
-      throw new Error("Tunnel not found");
+      throw new Error("Tunnel not found")
     }
 
-    stopTunnelProcess(id);
+    stopTunnelProcess(id)
 
     await db
       .update(tunnels)
       .set({ status: "stopped", pid: null, updatedAt: new Date() })
-      .where(eq(tunnels.id, id));
+      .where(eq(tunnels.id, id))
 
-    return { status: "stopped" as const };
+    return { status: "stopped" as const }
   }),
 
   logs: t.procedure.input(z.string()).query(async ({ input: id }) => {
-    return getTunnelLogs(id, 200);
+    return getTunnelLogs(id, 200)
   }),
 
   reconcile: t.procedure.mutation(async () => {
-    const alive = getAlivePids();
-    const aliveIds = Object.keys(alive);
+    const alive = getAlivePids()
+    const aliveIds = Object.keys(alive)
 
     const running = await db
       .select({ id: tunnels.id })
       .from(tunnels)
-      .where(eq(tunnels.status, "running"));
+      .where(eq(tunnels.status, "running"))
 
     const dead = running
       .filter((t) => !aliveIds.includes(t.id))
-      .map((t) => t.id);
+      .map((t) => t.id)
 
     if (dead.length > 0) {
       await db
         .update(tunnels)
         .set({ status: "stopped", pid: null, updatedAt: new Date() })
-        .where(inArray(tunnels.id, dead));
+        .where(inArray(tunnels.id, dead))
     }
 
-    return { alive: aliveIds.length, reconciled: dead.length };
+    return { alive: aliveIds.length, reconciled: dead.length }
   }),
-});
+})

@@ -38,7 +38,8 @@ type FormData = z.output<typeof formSchema>
 export default function NewTunnelPage() {
   const router = useRouter()
   const utils = api.useUtils()
-  const { data: domainData, isLoading: zonesLoading } = api.domains.list.useQuery()
+  const { data: domainData, isLoading: zonesLoading } =
+    api.domains.list.useQuery()
 
   const {
     control,
@@ -232,7 +233,10 @@ export default function NewTunnelPage() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || createMutation.isPending}>
+            <Button
+              type="submit"
+              disabled={isSubmitting || createMutation.isPending}
+            >
               {createMutation.isPending ? "Creating..." : "Create Tunnel"}
             </Button>
           </div>

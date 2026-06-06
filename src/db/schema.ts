@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core"
 
 export const tunnels = pgTable("tunnels", {
   id: text("id").primaryKey(),
@@ -15,4 +15,4 @@ export const tunnels = pgTable("tunnels", {
   pid: integer("pid"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+})

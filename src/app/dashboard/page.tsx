@@ -1,27 +1,34 @@
-"use client";
+"use client"
 
-import { GlobeIcon, CloudIcon, TerminalIcon, FingerprintIcon } from "@phosphor-icons/react";
-import { api } from "@/trpc/react";
+import {
+  GlobeIcon,
+  CloudIcon,
+  TerminalIcon,
+  FingerprintIcon,
+} from "@phosphor-icons/react"
+import { api } from "@/trpc/react"
 
 export default function OverviewPage() {
-  const { data: domainData, isLoading: domainLoading } = api.domains.list.useQuery();
-  const { data: tunnels, isLoading: tunnelsLoading } = api.tunnels.list.useQuery();
-  const { data: userData, isLoading: userLoading } = api.user.info.useQuery();
+  const { data: domainData, isLoading: domainLoading } =
+    api.domains.list.useQuery()
+  const { data: tunnels, isLoading: tunnelsLoading } =
+    api.tunnels.list.useQuery()
+  const { data: userData, isLoading: userLoading } = api.user.info.useQuery()
 
   if (domainLoading || tunnelsLoading || userLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <p className="text-sm text-muted-foreground">Loading overview...</p>
       </div>
-    );
+    )
   }
 
-  const zones = domainData?.zones ?? [];
+  const zones = domainData?.zones ?? []
   const stats = {
     total: tunnels?.length ?? 0,
     running: tunnels?.filter((t) => t.status === "running").length ?? 0,
-  };
-  const account = userData?.accountID ? userData : null;
+  }
+  const account = userData?.accountID ? userData : null
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6 max-w-xl">
@@ -77,7 +84,8 @@ export default function OverviewPage() {
       <div>
         <h2 className="text-base font-medium">Cloudflare Zones</h2>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {zones.length} zone{zones.length !== 1 ? "s" : ""} available for tunnel domains
+          {zones.length} zone{zones.length !== 1 ? "s" : ""} available for
+          tunnel domains
         </p>
       </div>
 
@@ -94,5 +102,5 @@ export default function OverviewPage() {
         )}
       </div>
     </div>
-  );
+  )
 }

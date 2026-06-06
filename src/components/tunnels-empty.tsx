@@ -1,6 +1,6 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { DotsThreeOutlineIcon, PlusIcon } from "@phosphor-icons/react";
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { DotsThreeOutlineIcon, PlusIcon } from "@phosphor-icons/react"
 
 export function TunnelsEmpty() {
   return (
@@ -10,7 +10,8 @@ export function TunnelsEmpty() {
       </div>
       <h3 className="text-lg font-medium mb-1">No tunnels yet</h3>
       <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-        Create your first Cloudflare Tunnel to expose a local service to the internet.
+        Create your first Cloudflare Tunnel to expose a local service to the
+        internet.
       </p>
       <Link href="/dashboard/new">
         <Button className="gap-1.5">
@@ -19,5 +20,5 @@ export function TunnelsEmpty() {
         </Button>
       </Link>
     </div>
-  );
+  )
 }
