@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/trpc/react";
 import { TunnelCard } from "@/components/tunnel-card";
@@ -13,11 +13,11 @@ export default function DashboardPage() {
     refetchInterval: (query) =>
       query.state.data?.some((t) => t.status === "running") ? 10_000 : false,
   });
-  const reconcileMutation = api.tunnels.reconcile.useMutation();
+  const reconcile = useRef(api.tunnels.reconcile.useMutation());
 
   useEffect(() => {
-    reconcileMutation.mutate();
-  }, [reconcileMutation]);
+    reconcile.current.mutate();
+  }, []);
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">

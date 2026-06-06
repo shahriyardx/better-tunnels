@@ -3,12 +3,12 @@ import { writeFileSync, existsSync, mkdirSync, readFileSync, createWriteStream }
 import { homedir } from "node:os";
 import path from "node:path";
 
-const CLOUDTUNNEL_DIR = path.join(homedir(), ".bettertunnels");
-const CONFIGS_DIR = path.join(CLOUDTUNNEL_DIR, "configs");
-const LOGS_DIR = path.join(CLOUDTUNNEL_DIR, "logs");
+const BETTERTUNNELS_DIR = path.join(homedir(), ".bettertunnels");
+const CONFIGS_DIR = path.join(BETTERTUNNELS_DIR, "configs");
+const LOGS_DIR = path.join(BETTERTUNNELS_DIR, "logs");
 
 function ensureDirs() {
-  if (!existsSync(CLOUDTUNNEL_DIR)) mkdirSync(CLOUDTUNNEL_DIR, { recursive: true });
+  if (!existsSync(BETTERTUNNELS_DIR)) mkdirSync(BETTERTUNNELS_DIR, { recursive: true });
   if (!existsSync(CONFIGS_DIR)) mkdirSync(CONFIGS_DIR, { recursive: true });
   if (!existsSync(LOGS_DIR)) mkdirSync(LOGS_DIR, { recursive: true });
 }
@@ -162,7 +162,7 @@ ingress:
 }
 
 // --- Process Manager ---
-const PIDS_PATH = path.join(CLOUDTUNNEL_DIR, "pids.json");
+const PIDS_PATH = path.join(BETTERTUNNELS_DIR, "pids.json");
 
 function readPids(): Record<string, number> {
   try {
