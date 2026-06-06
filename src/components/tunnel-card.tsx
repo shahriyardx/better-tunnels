@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,12 +18,25 @@ import {
   StopIcon,
   TrashIcon,
   CircleIcon,
-  TerminalIcon,
+  EyeIcon,
   CircleNotchIcon,
 } from "@phosphor-icons/react";
 import { api } from "@/trpc/react";
 
-type TunnelStatus = "stopped" | "running" | "error" | "creating";
+export type TunnelStatus = "stopped" | "running" | "error" | "creating";
+
+export interface Tunnel {
+  id: string;
+  name: string;
+  domain: string;
+  target: string;
+  port: number;
+  cloudflareTunnelId: string | null;
+  status: TunnelStatus;
+  pid: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 const STATUS_COLORS: Record<TunnelStatus, string> = {
   running: "text-green-500",
@@ -32,69 +45,38 @@ const STATUS_COLORS: Record<TunnelStatus, string> = {
   creating: "text-yellow-500",
 };
 
-export default function TunnelDetailPage() {
+export function TunnelCard({ tunnel }: { tunnel: Tunnel }) {
   const router = useRouter();
-  const params = useParams();
-  const id = params.id as string;
-  const logEndRef = useRef<HTMLDivElement>(null);
   const utils = api.useUtils();
 
-  const { data: tunnel, isLoading, error } = api.tunnels.byId.useQuery(id);
-  const { data: logs = [] } = api.tunnels.logs.useQuery(id, {
-    refetchInterval: 2_000,
-  });
-
   const startMutation = api.tunnels.start.useMutation({
-    onSuccess: () => {
-      utils.tunnels.byId.invalidate(id);
-      utils.tunnels.list.invalidate();
-    },
+    onSuccess: () => utils.tunnels.list.invalidate(),
     onError: (err) => alert(err.message),
   });
 
   const stopMutation = api.tunnels.stop.useMutation({
-    onSuccess: () => {
-      utils.tunnels.byId.invalidate(id);
-      utils.tunnels.list.invalidate();
-    },
+    onSuccess: () => utils.tunnels.list.invalidate(),
     onError: (err) => alert(err.message),
   });
 
   const deleteMutation = api.tunnels.delete.useMutation({
-    onSuccess: () => router.push("/dashboard"),
+    onSuccess: () => utils.tunnels.list.invalidate(),
     onError: (err) => alert(err.message),
   });
 
-  // Auto-scroll to bottom when new logs arrive
-  useEffect(() => {
-    if (logs.length > 0) {
-      logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [logs]);
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <p className="text-sm text-muted-foreground">Loading tunnel...</p>
-      </div>
-    );
-  }
-
-  if (error || !tunnel) {
-    return (
-      <div className="p-4 text-sm text-destructive">{error?.message ?? "Tunnel not found"}</div>
-    );
-  }
-
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      {/* Tunnel info card */}
-      <div className="rounded-none border bg-card p-5 space-y-4">
+    <div className="rounded-none border bg-card text-card-foreground shadow-sm">
+      <div className="p-5 space-y-4">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <CircleIcon className={`h-3 w-3 fill-current ${STATUS_COLORS[tunnel.status]}`} weight="fill" />
-              <h2 className="text-base font-medium">{tunnel.name}</h2>
+              <CircleIcon className={`h-2.5 w-2.5 fill-current ${STATUS_COLORS[tunnel.status]}`} weight="fill" />
+              <Link
+                href={`/dashboard/tunnels/${tunnel.id}`}
+                className="text-base font-medium hover:underline leading-none"
+              >
+                {tunnel.name}
+              </Link>
             </div>
             <p className="text-sm text-muted-foreground font-mono">{tunnel.domain}</p>
           </div>
@@ -104,11 +86,11 @@ export default function TunnelDetailPage() {
         <div className="grid grid-cols-3 gap-4 text-sm">
           <div>
             <span className="text-muted-foreground">Target</span>
-            <p className="font-mono">{tunnel.target}:{tunnel.port}</p>
+            <p className="font-mono truncate">{tunnel.target}:{tunnel.port}</p>
           </div>
           <div>
             <span className="text-muted-foreground">Tunnel ID</span>
-            <p className="font-mono text-xs truncate">{tunnel.cloudflareTunnelId}</p>
+            <p className="font-mono text-xs truncate">{tunnel.cloudflareTunnelId ?? "—"}</p>
           </div>
           <div>
             <span className="text-muted-foreground">PID</span>
@@ -118,7 +100,13 @@ export default function TunnelDetailPage() {
 
         <div className="flex items-center gap-2">
           {tunnel.status === "running" ? (
-            <Button variant="outline" size="sm" onClick={() => stopMutation.mutate(id)} disabled={stopMutation.isPending} className="gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => stopMutation.mutate(tunnel.id)}
+              disabled={stopMutation.isPending}
+              className="gap-1.5"
+            >
               {stopMutation.isPending ? (
                 <CircleNotchIcon className="h-3.5 w-3.5 animate-spin" />
               ) : (
@@ -127,18 +115,38 @@ export default function TunnelDetailPage() {
               {stopMutation.isPending ? "Stopping..." : "Stop"}
             </Button>
           ) : (
-            <Button variant="default" size="sm" onClick={() => startMutation.mutate(id)} disabled={startMutation.isPending} className="gap-1.5">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => startMutation.mutate(tunnel.id)}
+              disabled={startMutation.isPending || tunnel.status === "creating"}
+              className="gap-1.5"
+            >
               {startMutation.isPending ? (
                 <CircleNotchIcon className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <PlayIcon className="h-3.5 w-3.5" />
               )}
-              {startMutation.isPending ? "Starting..." : "Start"}
+              {startMutation.isPending ? "Starting..." : tunnel.status === "creating" ? "Starting..." : "Start"}
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push(`/dashboard/tunnels/${tunnel.id}`)}
+            className="gap-1.5"
+          >
+            <EyeIcon className="h-3.5 w-3.5" />
+            View
+          </Button>
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="destructive" size="sm" disabled={deleteMutation.isPending || startMutation.isPending || stopMutation.isPending} className="gap-1.5">
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={deleteMutation.isPending || stopMutation.isPending || startMutation.isPending}
+                className="gap-1.5"
+              >
                 <TrashIcon className="h-3.5 w-3.5" />
                 Delete
               </Button>
@@ -147,8 +155,8 @@ export default function TunnelDetailPage() {
               <DialogHeader>
                 <DialogTitle>Delete tunnel</DialogTitle>
                 <DialogDescription>
-                  Delete "{tunnel?.name}"? This cannot be undone. The tunnel
-                  will be removed from Cloudflare and your database.
+                  Delete "{tunnel.name}"? This cannot be undone. The tunnel will
+                  be removed from Cloudflare and your database.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
@@ -159,7 +167,7 @@ export default function TunnelDetailPage() {
                   variant="destructive"
                   size="sm"
                   disabled={deleteMutation.isPending}
-                  onClick={() => deleteMutation.mutate(id)}
+                  onClick={() => deleteMutation.mutate(tunnel.id)}
                   className="gap-1.5"
                 >
                   {deleteMutation.isPending ? (
@@ -170,31 +178,6 @@ export default function TunnelDetailPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
-
-      {/* Live logs */}
-      <div className="rounded-none border bg-card">
-        <div className="flex items-center justify-between px-5 py-3 border-b">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <TerminalIcon className="h-4 w-4" />
-            Live Logs
-          </div>
-          <span className="text-xs text-muted-foreground">{logs.length} lines</span>
-        </div>
-        <div className="p-4 max-h-125 overflow-y-auto">
-          {logs.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              {tunnel.status === "running"
-                ? "Waiting for logs..."
-                : "Start tunnel to see logs."}
-            </p>
-          ) : (
-            <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all">
-              {logs.join("\n")}
-              <div ref={logEndRef} />
-            </pre>
-          )}
         </div>
       </div>
     </div>
