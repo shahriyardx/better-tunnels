@@ -7,7 +7,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shahriyar/cloudtunnel.git"
+    "url": "git+https://github.com/shahriyardx/better-tunnels.git"
   },
   "scripts": {
     "dev": "next dev -p 5730",
