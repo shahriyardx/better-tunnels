@@ -121,6 +121,35 @@ export async function routeDnsViaApi(tunnelId: string, domain: string, apiToken:
   }
 }
 
+export async function deleteDnsRecord(domain: string, apiToken: string) {
+  const parts = domain.split(".");
+  const zoneName = parts.slice(-2).join(".");
+
+  const zonesRes = await fetch(
+    `https://api.cloudflare.com/client/v4/zones?name=${zoneName}`,
+    { headers: { Authorization: `Bearer ${apiToken}` } }
+  );
+  const zonesData = await zonesRes.json() as { success: boolean; result: Array<{ id: string }> };
+  const zone = zonesData.result?.[0];
+  if (!zone) throw new Error(`Zone not found for domain: ${zoneName}`);
+
+  const listRes = await fetch(
+    `https://api.cloudflare.com/client/v4/zones/${zone.id}/dns_records?name=${domain}&type=CNAME`,
+    { headers: { Authorization: `Bearer ${apiToken}` } }
+  );
+  const listData = await listRes.json() as { success: boolean; result: Array<{ id: string }> };
+  const record = listData.result?.[0];
+  if (!record) return; // record already gone
+
+  await fetch(
+    `https://api.cloudflare.com/client/v4/zones/${zone.id}/dns_records/${record.id}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${apiToken}` },
+    }
+  );
+}
+
 export function getCloudflareApiToken(): string {
   const certPath = path.join(homedir(), ".cloudflared", "cert.pem");
   if (!existsSync(certPath)) throw new Error("cloudflared cert.pem not found. Run `cloudflared tunnel login`.");

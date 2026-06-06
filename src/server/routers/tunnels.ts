@@ -5,6 +5,7 @@ import {
   checkInstallation,
   createCloudflareTunnel,
   deleteCloudflareTunnel,
+  deleteDnsRecord,
   getCloudflareApiToken,
   routeDnsViaApi,
   startTunnelProcess,
@@ -63,8 +64,9 @@ export const tunnelsRouter = t.router({
           throw dnsErr;
         }
 
+        const id = randomUUID();
         const tunnel = {
-          id: randomUUID(),
+          id,
           name,
           domain,
           target,
@@ -77,7 +79,26 @@ export const tunnelsRouter = t.router({
         };
 
         await db.insert(tunnels).values(tunnel);
-        return tunnel;
+
+        // Auto-start the tunnel after creation
+        try {
+          const { pid } = startTunnelProcess(
+            id,
+            name,
+            tunnelId,
+            domain,
+            target,
+            port,
+          );
+          await db
+            .update(tunnels)
+            .set({ status: "running", pid, updatedAt: new Date() })
+            .where(eq(tunnels.id, id));
+          return { ...tunnel, status: "running" as const, pid };
+        } catch {
+          // Auto-start failed, return tunnel as created but not running
+          return tunnel;
+        }
       } catch (err) {
         if (createdTunnelName) {
           try {
@@ -106,6 +127,12 @@ export const tunnelsRouter = t.router({
     try {
       deleteCloudflareTunnel(t.name);
     } catch { /* may already be deleted */ }
+
+    // Delete DNS CNAME record
+    try {
+      const apiToken = getCloudflareApiToken();
+      await deleteDnsRecord(t.domain, apiToken);
+    } catch { /* record may already be gone */ }
 
     await db.delete(tunnels).where(eq(tunnels.id, id));
   }),

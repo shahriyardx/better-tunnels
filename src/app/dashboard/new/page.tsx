@@ -58,7 +58,7 @@ export default function NewTunnelPage() {
   const createMutation = api.tunnels.create.useMutation({
     onSuccess: () => {
       utils.tunnels.list.invalidate()
-      router.push("/dashboard")
+      router.push("/dashboard/tunnels")
     },
     onError: (err) => {
       setError("root", { message: err.message })
@@ -227,7 +227,7 @@ export default function NewTunnelPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/dashboard/tunnels")}
               disabled={isSubmitting || createMutation.isPending}
             >
               Cancel
