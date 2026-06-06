@@ -1,48 +1,45 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod/v4";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod/v4"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/select"
 import {
   Field,
   FieldLabel,
   FieldError,
   FieldDescription,
-} from "@/components/ui/field";
-import { CircleNotchIcon } from "@phosphor-icons/react";
+} from "@/components/ui/field"
+import { CircleNotchIcon } from "@phosphor-icons/react"
 
 const formSchema = z.object({
   name: z.string().min(1, "Tunnel name is required"),
   subdomain: z.string().optional().default(""),
   domain: z.string().min(1, "Domain is required"),
   target: z.string().min(1, "Target host is required"),
-  port: z.string().refine(
-    (v) => {
-      const n = Number(v);
-      return !Number.isNaN(n) && Number.isInteger(n) && n >= 1 && n <= 65535;
-    },
-    "Port must be between 1 and 65535",
-  ),
-});
+  port: z.string().refine((v) => {
+    const n = Number(v)
+    return !Number.isNaN(n) && Number.isInteger(n) && n >= 1 && n <= 65535
+  }, "Port must be between 1 and 65535"),
+})
 
-type FormData = z.output<typeof formSchema>;
+type FormData = z.output<typeof formSchema>
 
 export default function NewTunnelPage() {
-  const router = useRouter();
-  const [zones, setZones] = useState<string[]>([]);
-  const [zonesLoaded, setZonesLoaded] = useState(false);
-  const [selectedZone, setSelectedZone] = useState("");
+  const router = useRouter()
+  const [zones, setZones] = useState<string[]>([])
+  const [zonesLoaded, setZonesLoaded] = useState(false)
+  const [selectedZone, setSelectedZone] = useState("")
 
   const {
     control,
@@ -60,35 +57,37 @@ export default function NewTunnelPage() {
       target: "localhost",
       port: "",
     },
-  });
+  })
 
   useEffect(() => {
     fetch("/api/domains")
       .then((r) => r.json())
       .then((data) => {
         if (data.zones?.length) {
-          setZones(data.zones);
-          const first = data.zones[0];
-          setSelectedZone(first);
-          setValue("domain", first, { shouldValidate: true });
+          setZones(data.zones)
+          const first = data.zones[0]
+          setSelectedZone(first)
+          setValue("domain", first, { shouldValidate: true })
         }
       })
       .catch(() => {})
-      .finally(() => setZonesLoaded(true));
-  }, [setValue]);
+      .finally(() => setZonesLoaded(true))
+  }, [setValue])
 
   const computeDomain = (sub: string, zone: string) =>
-    zone ? (sub ? `${sub}.${zone}` : zone) : sub || "";
+    zone ? (sub ? `${sub}.${zone}` : zone) : sub || ""
 
   const handleSubdomainChange = (value: string) => {
-    setValue("domain", computeDomain(value, selectedZone), { shouldValidate: false });
-  };
+    setValue("domain", computeDomain(value, selectedZone), {
+      shouldValidate: false,
+    })
+  }
 
   const handleZoneChange = (zone: string) => {
-    setSelectedZone(zone);
-    const sub = getValues("subdomain") || "";
-    setValue("domain", computeDomain(sub, zone), { shouldValidate: true });
-  };
+    setSelectedZone(zone)
+    const sub = getValues("subdomain") || ""
+    setValue("domain", computeDomain(sub, zone), { shouldValidate: true })
+  }
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -96,164 +95,169 @@ export default function NewTunnelPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...data, port: Number(data.port) }),
-      });
+      })
 
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to create tunnel");
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Failed to create tunnel")
 
-      router.push("/dashboard");
-      router.refresh();
+      router.push("/dashboard")
+      router.refresh()
     } catch (err) {
       setError("root", {
         message: err instanceof Error ? err.message : "Failed to create tunnel",
-      });
+      })
     }
-  };
+  }
 
   return (
-        <div className="flex flex-1 flex-col gap-4 p-4 max-w-lg">
-          {!zonesLoaded ? (
-            <div className="flex flex-1 items-center justify-center min-h-[300px]">
-              <CircleNotchIcon className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <Controller
-              name="name"
-              control={control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Tunnel Name</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    placeholder="my-app-tunnel"
-                    aria-invalid={fieldState.invalid}
-                    autoComplete="off"
-                  />
-                  <FieldDescription>
-                    Used by cloudflared to identify this tunnel.
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              name="subdomain"
-              control={control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Domain</FieldLabel>
-                  <div className="flex items-start gap-1">
-                    <div className="flex-1">
-                      <Input
-                        {...field}
-                        id={field.name}
-                        placeholder="subdomain"
-                        aria-invalid={fieldState.invalid}
-                        autoComplete="off"
-                        onChange={(e) => {
-                          field.onChange(e);
-                          handleSubdomainChange(e.target.value);
-                        }}
-                      />
-                    </div>
-                    <span className="mt-2 text-sm text-muted-foreground font-mono">.</span>
-                    <div className="flex-[3]">
-                      <Select value={selectedZone} onValueChange={handleZoneChange}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="domain.com" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {zones.map((zone) => (
-                            <SelectItem key={zone} value={zone}>{zone}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <FieldDescription>
-                    Subdomain + zone. Example: app.shahriyar.dev
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2">
-                <Controller
-                  name="target"
-                  control={control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={field.name}>
-                        Target Host
-                      </FieldLabel>
-                      <Input
-                        {...field}
-                        id={field.name}
-                        placeholder="localhost"
-                        aria-invalid={fieldState.invalid}
-                      />
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
-              </div>
-              <div>
-                <Controller
-                  name="port"
-                  control={control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={field.name}>Port</FieldLabel>
-                      <Input
-                        {...field}
-                        id={field.name}
-                        type="number"
-                        placeholder="3000"
-                        min={1}
-                        max={65535}
-                        aria-invalid={fieldState.invalid}
-                      />
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
-              </div>
-            </div>
-
-            {errors.root && (
-              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
-                {errors.root.message}
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push("/dashboard")}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Creating..." : "Create Tunnel"}
-              </Button>
-            </div>
-          </form>
-          )}
+    <div className="flex flex-1 flex-col gap-4 p-4 max-w-lg">
+      {!zonesLoaded ? (
+        <div className="flex flex-1 items-center justify-center min-h-75">
+          <CircleNotchIcon className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-  );
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <Controller
+            name="name"
+            control={control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor={field.name}>Tunnel Name</FieldLabel>
+                <Input
+                  {...field}
+                  id={field.name}
+                  placeholder="my-app-tunnel"
+                  aria-invalid={fieldState.invalid}
+                  autoComplete="off"
+                />
+                <FieldDescription>
+                  Used by cloudflared to identify this tunnel.
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <Controller
+            name="subdomain"
+            control={control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor={field.name}>Domain</FieldLabel>
+                <div className="flex items-start gap-1">
+                  <div className="flex-1">
+                    <Input
+                      {...field}
+                      id={field.name}
+                      placeholder="subdomain"
+                      aria-invalid={fieldState.invalid}
+                      autoComplete="off"
+                      onChange={(e) => {
+                        field.onChange(e)
+                        handleSubdomainChange(e.target.value)
+                      }}
+                    />
+                  </div>
+                  <span className="mt-2 text-sm text-muted-foreground font-mono">
+                    .
+                  </span>
+                  <div className="flex-3">
+                    <Select
+                      value={selectedZone}
+                      onValueChange={handleZoneChange}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="domain.com" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {zones.map((zone) => (
+                          <SelectItem key={zone} value={zone}>
+                            {zone}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <FieldDescription>
+                  Subdomain + zone. Example: app.shahriyar.dev
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <Controller
+                name="target"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Target Host</FieldLabel>
+                    <Input
+                      {...field}
+                      id={field.name}
+                      placeholder="localhost"
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </div>
+            <div>
+              <Controller
+                name="port"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Port</FieldLabel>
+                    <Input
+                      {...field}
+                      id={field.name}
+                      type="number"
+                      placeholder="3000"
+                      min={1}
+                      max={65535}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </div>
+          </div>
+
+          {errors.root && (
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
+              {errors.root.message}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push("/dashboard")}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Creating..." : "Create Tunnel"}
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
 }
