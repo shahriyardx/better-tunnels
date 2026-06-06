@@ -2,13 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { AppSidebar } from "@/components/app-sidebar";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import {
   PlayIcon,
@@ -18,6 +11,7 @@ import {
   ArrowCounterClockwiseIcon,
   DotsThreeOutlineIcon,
   CircleIcon,
+  EyeIcon,
 } from "@phosphor-icons/react";
 
 type TunnelStatus = "stopped" | "running" | "error" | "creating";
@@ -55,6 +49,7 @@ function TunnelCard({
   onDelete: (id: string) => void;
   loading: boolean;
 }) {
+  const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = () => {
@@ -70,16 +65,31 @@ function TunnelCard({
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <CircleIcon className={`h-2.5 w-2.5 fill-current ${STATUS_COLORS[tunnel.status]}`} weight="fill" />
-              <h3 className="font-medium leading-none tracking-tight">{tunnel.name}</h3>
+              <button
+                onClick={() => router.push(`/dashboard/tunnels/${tunnel.id}`)}
+                className="text-base font-medium hover:underline text-left leading-none"
+              >
+                {tunnel.name}
+              </button>
             </div>
             <p className="text-sm text-muted-foreground font-mono">{tunnel.domain}</p>
           </div>
           <span className="text-xs uppercase text-muted-foreground font-mono">{tunnel.status}</span>
         </div>
 
-        <div className="flex items-center gap-4 text-sm text-muted-foreground font-mono">
-          <span>→ {tunnel.target}:{tunnel.port}</span>
-          {tunnel.pid && <span>pid {tunnel.pid}</span>}
+        <div className="grid grid-cols-3 gap-4 text-sm">
+          <div>
+            <span className="text-muted-foreground">Target</span>
+            <p className="font-mono truncate">{tunnel.target}:{tunnel.port}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Tunnel ID</span>
+            <p className="font-mono text-xs truncate">{tunnel.cloudflareTunnelId ?? "—"}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">PID</span>
+            <p className="font-mono">{tunnel.pid ?? "—"}</p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -106,6 +116,15 @@ function TunnelCard({
               {tunnel.status === "creating" ? "Starting..." : "Start"}
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push(`/dashboard/tunnels/${tunnel.id}`)}
+            className="gap-1.5"
+          >
+            <EyeIcon className="h-3.5 w-3.5" />
+            View
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -138,7 +157,7 @@ function EmptyState() {
 
 function LoadingSkeleton() {
   return (
-    <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="flex flex-col gap-4">
       {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className="rounded-xl border bg-card p-5 space-y-4 animate-pulse">
           <div className="flex items-start justify-between">
@@ -242,39 +261,6 @@ export default function DashboardPage() {
   const runningCount = tunnels.filter((t) => t.status === "running").length;
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-          </div>
-          <div className="flex flex-1 items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h1 className="text-sm font-medium">Tunnels</h1>
-              {tunnels.length > 0 && (
-                <span className="text-xs text-muted-foreground font-mono">
-                  {runningCount} running / {tunnels.length} total
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={fetchTunnels} title="Refresh">
-                <ArrowCounterClockwiseIcon className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => router.push("/dashboard/new")}
-                className="gap-1.5"
-              >
-                <PlusIcon className="h-4 w-4" />
-                New Tunnel
-              </Button>
-            </div>
-          </div>
-        </header>
 
         <div className="flex flex-1 flex-col gap-4 p-4">
           {error && (
@@ -291,7 +277,7 @@ export default function DashboardPage() {
           ) : tunnels.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-4">
               {tunnels.map((tunnel) => (
                 <TunnelCard
                   key={tunnel.id}
@@ -305,7 +291,5 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      </SidebarInset>
-    </SidebarProvider>
   );
 }

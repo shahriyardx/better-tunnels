@@ -5,13 +5,6 @@ import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod/v4";
-import { AppSidebar } from "@/components/app-sidebar";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,7 +20,7 @@ import {
   FieldError,
   FieldDescription,
 } from "@/components/ui/field";
-import { ArrowLeftIcon, CircleNotchIcon } from "@phosphor-icons/react";
+import { CircleNotchIcon } from "@phosphor-icons/react";
 
 const formSchema = z.object({
   name: z.string().min(1, "Tunnel name is required"),
@@ -118,30 +111,7 @@ export default function NewTunnelPage() {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/dashboard")}
-              className="gap-1.5"
-            >
-              <ArrowLeftIcon className="h-4 w-4" />
-              Back
-            </Button>
-            <Separator orientation="vertical" className="h-4" />
-            <h1 className="text-sm font-medium">New Tunnel</h1>
-          </div>
-        </header>
-
-        <div className="flex flex-1 flex-col gap-4 p-4 max-w-lg mx-auto w-full pt-12">
+        <div className="flex flex-1 flex-col gap-4 p-4 max-w-lg">
           {!zonesLoaded ? (
             <div className="flex flex-1 items-center justify-center min-h-[300px]">
               <CircleNotchIcon className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -285,7 +255,5 @@ export default function NewTunnelPage() {
           </form>
           )}
         </div>
-      </SidebarInset>
-    </SidebarProvider>
   );
 }

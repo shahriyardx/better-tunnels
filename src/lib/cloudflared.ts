@@ -1,14 +1,16 @@
 import { execSync, spawn } from "node:child_process";
-import { writeFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { writeFileSync, existsSync, mkdirSync, readFileSync, createWriteStream } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
 const CLOUDTUNNEL_DIR = path.join(homedir(), ".cloudtunnel");
 const CONFIGS_DIR = path.join(CLOUDTUNNEL_DIR, "configs");
+const LOGS_DIR = path.join(CLOUDTUNNEL_DIR, "logs");
 
 function ensureDirs() {
   if (!existsSync(CLOUDTUNNEL_DIR)) mkdirSync(CLOUDTUNNEL_DIR, { recursive: true });
   if (!existsSync(CONFIGS_DIR)) mkdirSync(CONFIGS_DIR, { recursive: true });
+  if (!existsSync(LOGS_DIR)) mkdirSync(LOGS_DIR, { recursive: true });
 }
 
 function execCloudflared(args: string[]): string {
@@ -179,10 +181,16 @@ export function startTunnelProcess(tunnelId: string, name: string, cloudflareTun
   const yml = generateConfigYml(cloudflareTunnelId, credentialsPath, domain, target, port);
   writeFileSync(ymlPath, yml, "utf-8");
 
+  // Pipe logs to file for live viewing
+  const logPath = path.join(LOGS_DIR, `${tunnelId}.log`);
+  const logStream = createWriteStream(logPath, { flags: "a" });
+
   const proc = spawn("cloudflared", ["tunnel", "--config", ymlPath, "run", "--protocol", "http2"], {
-    stdio: "ignore",
+    stdio: ["ignore", "pipe", "pipe"],
     detached: true,
   });
+  proc.stdout.pipe(logStream);
+  proc.stderr.pipe(logStream);
   proc.unref();
 
   const pid = proc.pid!;
@@ -263,8 +271,16 @@ export function isProcessRunning(tunnelId: string): boolean {
   }
 }
 
-export function getLogs(_tunnelId: string): string[] {
-  return [];
+export function getTunnelLogs(tunnelId: string, lines: number = 100): string[] {
+  const logPath = path.join(LOGS_DIR, `${tunnelId}.log`);
+  if (!existsSync(logPath)) return [];
+  try {
+    const content = readFileSync(logPath, "utf-8");
+    const all = content.split("\n").filter(Boolean);
+    return all.slice(-lines);
+  } catch {
+    return [];
+  }
 }
 
 export function getRunningPids(): Record<string, number> {
