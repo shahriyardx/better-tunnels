@@ -126,7 +126,7 @@ export function getCloudflareApiToken(): string {
   if (!existsSync(certPath)) throw new Error("cloudflared cert.pem not found. Run `cloudflared tunnel login`.");
   const raw = readFileSync(certPath, "utf-8");
   // New format: base64-encoded ARGO TUNNEL TOKEN
-  const b64 = raw.replace(/-----BEGIN[^]+?-----/g, "").replace(/-----END[^]+?-----/g, "").replace(/\s/g, "");
+  const b64 = raw.replace(/-----BEGIN[\s\S]*?-----/g, "").replace(/-----END[\s\S]*?-----/g, "").replace(/\s/g, "");
   if (b64) {
     try {
       const decoded = JSON.parse(Buffer.from(b64, "base64").toString());
@@ -145,7 +145,7 @@ export function getCertAccountInfo(): { accountID: string; zoneID: string } {
   const certPath = path.join(homedir(), ".cloudflared", "cert.pem");
   if (!existsSync(certPath)) throw new Error("cert.pem not found. Run `cloudflared tunnel login`.");
   const raw = readFileSync(certPath, "utf-8");
-  const b64 = raw.replace(/-----BEGIN[^]+?-----/g, "").replace(/-----END[^]+?-----/g, "").replace(/\s/g, "");
+  const b64 = raw.replace(/-----BEGIN[\s\S]*?-----/g, "").replace(/-----END[\s\S]*?-----/g, "").replace(/\s/g, "");
   const decoded = JSON.parse(Buffer.from(b64, "base64").toString());
   return { accountID: decoded.accountID || "", zoneID: decoded.zoneID || "" };
 }
