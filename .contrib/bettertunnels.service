@@ -11,6 +11,7 @@ ExecStart=/home/shahriyar/.bun/bin/bun run dev
 Restart=on-failure
 RestartSec=5
 Environment=PORT=5730
+Environment=DATABASE_URL=postgres://postgres:postgres@localhost:5731/postgres
 
 [Install]
 WantedBy=default.target
